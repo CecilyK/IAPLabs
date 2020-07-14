@@ -1,85 +1,112 @@
 <?php
-
-
-class FileUploader
-{
-    private $target_directory = "uploads/";
-    public $target_file;
-    private $size_limit = 50000; // File size in bytes (50kB)
-    private $uploadOk = false;
-    private $file_original_name;
-    private $file_type;
-    private $file_size;
-    private $final_file_name;
-
-    /**
-     * @return bool
-     */
-    public function isUploadOk()
+    class FileUploader 
     {
-        return $this->uploadOk;
-    }
+        private static $target_directory = "uploads/";
+        private static $size_limit = 50000;
+        private $uploadOk = false;
+        private $file_original_name;
+        private $file_type;
+        private $file_size;
+        private $final_file_name;
 
-
-    public function uploadFile()
-    {
-        $check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
-        if ($check !== false) {
-            $this->uploadOk = true;
+        public function setOriginalName($name)
+        {
+            $this->file_original_name = $name;
         }
-        $this->target_file = $this->target_directory . basename($_FILES["fileToUpload"]["name"]);
 
-        $this->fileAlreadyExists($this->target_directory);
-        $this->fileSizeIsCorrect();
-        $this->fileTypeIsCorrect();
+        public function setFileType($type)
+        {
+            $this->file_type = $type;
+        }
 
-        if ($this->uploadOk == false) {
+        public function getFileType()
+        {
+            return $this->file_type;
+        }
 
-        } else {
-            if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $this->target_file)) {
-                echo "Image uploaded <br>";
-            } else {
-                echo "Upload failed<br>";
+        public function setFileSize($size)
+        {
+            $this->file_size = $size;
+        }
+
+        public function getFileSize()
+        {
+            return $this->file_size;
+        }
+
+        public function setFinalFileName($final_name)
+        {
+            $this->final_file_name = $final_name;
+        }
+
+        public function getFinalFileName()
+        {
+            return $this->final_file_name;
+        }
+
+        public function uploadFile($file): bool
+        {
+            $this->setFileSize($file["size"]);
+            $this->setOriginalName(FileUploader::$target_directory . basename($file["name"]));
+            $this->setFileType(pathinfo($this->file_original_name,PATHINFO_EXTENSION));
+            if (!getimagesize($file["tmp_name"])) {
+                return false;
             }
+            if ($this->fileAlreadyExists()) {
+                $this->displayError("This file already exists");
+                return false;   
+            }
+            if (!$this->fileSizeIsCorrect()) {
+                $this->displayError("This file is too large. Maximum upload size is 50KB");
+                return false;
+            }
+            if (!$this->fileTypeIsCorrect()) {
+                $this->displayError("Incorrect file type. Accepted file types are .jpg, .jpeg, png and gif");
+                return false;
+            }
+            $this->setFinalFileName($this->file_original_name);
+            $this->uploadOk = $this->moveFile($file["tmp_name"]);
+            return $this->uploadOk;
+        }
+
+        public function displayError(string $message)
+        {
+            if (session_status() == PHP_SESSION_NONE) {
+                session_start();
+            }
+            $_SESSION['form_errors'] = $message;
+        }        
+
+        public function fileAlreadyExists(): bool
+        {
+            return file_exists($this->file_original_name);
+        }
+        
+        public function saveFilePathTo()
+        {
+            
+        }
+
+        public function moveFile(string $file_tmp_name): bool
+        {
+            return move_uploaded_file($file_tmp_name,   $this->getFinalFileName());
+        }
+
+        public function fileTypeIsCorrect(): bool
+        {
+            $acceptedPattern = "/jpe?g|png|gif/";
+            return preg_match($acceptedPattern,$this->getFileType());
+        }
+
+        public function fileSizeIsCorrect(): bool
+        {
+            return $this->getFileSize() <= FileUploader::$size_limit;
+        }
+
+        public function fileWasSelected()
+        {
+            
         }
     }
-
-    public function fileAlreadyExists($target_directory)
-    {
-        $target_file = $target_directory . basename($_FILES["fileToUpload"]["name"]);
-        if (file_exists($target_file)) {
-            echo "Sorry, file already exists.";
-            $this->uploadOk = false;
-        }
-    }
-
-    public function savePathTo()
-    {
-
-    }
-
-    public function moveFile()
-    {
-
-    }
-
-    public function fileTypeIsCorrect()
-    {
-        $imageFileType = strtolower(pathinfo($this->target_file, PATHINFO_EXTENSION));
-//        echo "fkghfoghfog".$imageFileType;
-//        die();
-        if(($imageFileType != "jpg") && ($imageFileType != "png") && ($imageFileType != "jpeg")
-            && ($imageFileType != "gif") ) {
-            echo "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
-            $this->uploadOk = false;
-        }
-    }
-
-    public function fileSizeIsCorrect()
-    {
-        if ($_FILES["fileToUpload"]["size"] > $this->size_limit) {
-            echo "Sorry, your file is too large.";
-            $this->uploadOk = false;
-        }
-    }
-}
+    
+?>

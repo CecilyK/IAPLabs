@@ -1,3 +1,5 @@
 <?php
-include_once 'User.php';
-User::logout();
+    include_once 'user.php';
+    $instance = User::create();
+    $instance->logout();
+?>

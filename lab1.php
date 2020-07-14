@@ -1,104 +1,122 @@
 <?php
-  include_once 'DBConnector.php';
-  include_once 'User.php';
-  include_once 'FileUploader.php';
-  $con = new DBConnector;
+include_once 'DBConnector.php';
+include_once 'user.php';
+include_once 'fileUploader.php';
+$db = new DBConnector();
 
-  if (isset($_POST['btn-save'])) {
+if (isset($_POST['btn-save'])) {    
     $first_name = $_POST['first_name'];
     $last_name = $_POST['last_name'];
     $city = $_POST['city_name'];
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+    $uname = $_POST['username'];
+    $pass = $_POST['password'];
 
     $utc_timestamp = $_POST['utc_timestamp'];
     $offset = $_POST['time_zone_offset'];
-    $user = new User($first_name, $last_name, $city, $username, $password, $utc_timestamp, $offset);
-    if (!$user->validateForm()) {
-        $user->createFormErrorSessions();
+
+    $user = new User($first_name,$last_name,$city,$uname,$pass,$utc_timestamp,$offset);
+    $uploader = new FileUploader();
+    if (!$user->valiteForm()) {
+        $user->createFormErrorSessions();        
         header("Refresh:0");
         die();
-    } elseif ($user->isUserExist($con->conn)) {
-        session_start();
-        $_SESSION['username'] = "Username taken.";
-        header("Refresh: 0");
+    } else if ($user->isUserExist($db->conn)){
+        $user->createFormErrorSessions();
+        $_SESSION['form_errors'] = "This username is already taken";
+        header("Refresh:0");
         die();
     }
 
-    $uploader = new FileUploader();
-    $uploader->uploadFile();
-    $target_file = $uploader->target_file;
-    $res = $user->save($con->conn, $target_file);
+    $res = $user->save($db->conn);
 
-    if ($res) {
-      echo "Save operation successful!";
-      if ($uploader->isUploadOk()){
-          echo "Image uploaded";
-      } else {
-          echo "Not uploaded";
-      }
-    } else {
-      echo "An error occurred!";
+    $file_upload_response = $uploader->uploadFile($_FILES['fileToUpload']);
+
+
+    if ($res && $file_upload_response) {
+        echo "Save operation was successful";
+    } else if(!$file_upload_response && empty($_SESSION['form_errors'])){
+        $_SESSION['form_errors'] = "File upload was unsuccessful";
     }
-  }
+    
+}
 ?>
 <html>
-  <head>
-    <title>New User</title>
+<head>
+    <title>Sample Document</title>
     <script type="text/javascript" src="validate.js"></script>
     <link rel="stylesheet" type="text/css" href="validate.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-      <script type="text/javascript" src="timezone.js"></script>
-  </head>
-  <body>
-    <form name="user_details" id="user_details" enctype="multipart/form-data" method="post" action=<?=$_SERVER['PHP_SELF'] ?> onsubmit="return validateForm()">
+</head>
+<body>
+    <form method="post" name="user_details" id="user_details" enctype="multipart/form-data" onsubmit="return validateForm()" action="<?=$_SERVER['PHP_SELF']?>">
         <table align="center">
             <tr>
-                <div id="form-errors">
+                <td>
+                    <div id="form-errors">
                     <?php
-                        session_start();
-                        if (!empty($_SESSION['form-errors'])) {
-                            echo $_SESSION["form-errors"];
-                            unset($_SESSION['form-errors']);
+                        if (session_status() == PHP_SESSION_NONE) {
+                            session_start();
                         }
-
-                        if (!empty($_SESSION['username'])) {
-                            echo $_SESSION['username'];
-                            unset($_SESSION['username']);
+                        if (!empty($_SESSION['form_errors'])) {
+                            echo " " . $_SESSION['form_errors'];
+                            unset($_SESSION['form_errors']);
                         }
                     ?>
-                </div>
+                    </div>
+                </td>
             </tr>
             <tr>
-                <td><input type="text" name="first_name" placeholder="First Name" required/></td>
+                <td><input type="text" name="first_name" required placeholder="First Name" required></td>
             </tr>
             <tr>
-                <td><input type="text" name="last_name" placeholder="Last Name" /></td>
+                <td><input type="text" name="last_name" placeholder="Last Name" required></td>
             </tr>
             <tr>
-                <td><input type="text" name="city_name" placeholder="City" /></td>
+                <td><input type="text" name="city_name" placeholder="City" required></td>
             </tr>
             <tr>
-                <td><input type="text" name="username" placeholder="Username"></td>
+                <td><input type="text" name="username" placeholder="Username" required></td>
             </tr>
             <tr>
-                <td><input type="password" name="password" placeholder="Password"></td>
+                <td><input type="password" name="password" placeholder="Password" required></td>
             </tr>
             <tr>
-                <td>Profile Image: <input type="file" name="fileToUpload" id="fileToUpload"></td>
+                <td>Profile image:<input type="file" name="fileToUpload" id="fileToUpload" accept="image/*" required></td>
             </tr>
             <tr>
                 <td><button type="submit" name="btn-save"><strong>SAVE</strong></button></td>
             </tr>
-            <input type="hidden" name="utc_timestamp" id="utc_timestamp" value=""/>
-            <input type="hidden" name="time_zone_offset" id="time_zone_offset" value=""/>
+            <input type="hidden" name="utc_timestamp" id="utc_timestamp" value="">
+            <input type="hidden" name="time_zone_offset" id="time_zone_offset" value="">
             <tr>
-                <td><a href="login.php">Log In</a> </td>
+                <td><a href="login.php">Login</a></td>
             </tr>
-    </table>
+        </table>
     </form>
-  </body>
-      <a href="all-records.php">Show All Records</a>
-
-
+    <div>
+        <h1>Saved Users</h1>
+        <table>
+            <thead>
+                <td>First Name</td>
+                <td>Last Name</td>
+                <td>City</td>
+            </thead>
+            <?php            
+                $user = User::create();
+                $db_users = $user->readAll($db->conn);
+                foreach ($db_users as $db_user) {
+            ?>
+             <tr>
+                    <td><?php echo $db_user[0] ?></td>
+                    <td><?php echo $db_user[1] ?></td>
+                    <td><?php echo $db_user[2] ?></td>
+             </tr>
+            <?php
+                }
+                $db->closeDatabase();
+            ?>
+        </table>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="./timezone.js" type="text/javascript"></script>
+</body>
 </html>

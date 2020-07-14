@@ -1,9 +1,9 @@
 <?php
-
-interface Authenticator {
+interface Authenticator{
     public function hashPassword();
-    public static function isPasswordCorrect($username, $password);
-    public function login();
-    public static function logout();
+    public function isPasswordCorrect($conn);
+    public function login($conn);
+    public function logout();
     public function createFormErrorSessions();
 }
+?>
