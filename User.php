@@ -74,9 +74,7 @@
       return $this->offset;
     }
 
-    /**
-     * @param mixed $offset
-     */
+   
     public function setOffset($offset)
     {
       $this->offset = $offset;
